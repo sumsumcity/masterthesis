@@ -120,6 +120,8 @@ function Analyze({ onNrThreats }) {
       const makePostRequest = async () => {
         setIsLoading(true); // Start loading
         try {
+          console.log("request made to: " +`${backendUrl}/threat_detection`)
+          console.log("Body is: " + diagram)
           const response = await fetch(`${backendUrl}/threat_detection`, {
             method: "POST",
             headers: {
@@ -158,7 +160,7 @@ function Analyze({ onNrThreats }) {
 
   function getThreatsforCategory(category) {
     var threats = threatTaxonomy.filter(t => t['Affected assets'].includes(category));
-    console.log(threats);
+    //console.log(threats);
   
     // Only filter threats if we have data from the backend
     if (threatsFromBackend.length > 0) {
@@ -241,7 +243,7 @@ function Analyze({ onNrThreats }) {
     function assetGroup(group, groupIsKey) {
       // should all be the same, check the first
       var category = group[0]?.assetCategory
-      console.log(category)
+      //console.log(category)
       if (propFilter[category] && category) {
         return (
           <>
@@ -484,7 +486,7 @@ export function ThreatModel (props) {
       <AccordionDetails>
         <List>
           { threatModel.map(function renderThreat (threat) {
-            console.log(threat)
+            //console.log(threat)
             return (
               <Accordion>
                 <AccordionSummary

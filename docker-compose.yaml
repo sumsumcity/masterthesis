@@ -8,5 +8,15 @@ services:
     volumes:
       - chromadb_data:/data
 
+  frontend:
+    build:
+      context: ./react-frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "3001:3000"
+    environment:
+      - REACT_APP_BACKEND_URL=http://host.docker.internal:5000
+
 volumes:
   chromadb_data:

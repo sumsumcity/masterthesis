@@ -68,5 +68,8 @@ if __name__ == "__main__":
     #result = getData(vectorStore)
     #print(len(result["ids"]))
 
-
+    # client = chromadb.HttpClient(host="localhost", port=8000)
+    # collections = client.list_collections()
+    # for collection in collections:
+    #     print(collection)
     
