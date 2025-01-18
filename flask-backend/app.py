@@ -21,43 +21,57 @@ def upload_file():
     if not os.path.exists(UPLOAD_FOLDER):
         os.makedirs(UPLOAD_FOLDER)
 
-    # Check if the request has a file part
+    # Check if the request has files
     if 'file' not in request.files:
-        return jsonify({"error": "No file part in the request."}), 400
+        return jsonify({"error": "No files part in the request."}), 400
 
-    file = request.files['file']
+    # Get all files under the 'file' key (since it's being sent multiple times)
+    files = request.files.getlist('file')
 
-    # Check if a file is selected
-    if file.filename == '':
-        return jsonify({"error": "No file selected."}), 400
+    # Check if at least one file is selected
+    if not files:
+        return jsonify({"error": "No files selected."}), 400
 
-    # Validate file type
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(UPLOAD_FOLDER, filename)
-        file.save(filepath)
+    uploaded_files = []
+    failed_files = []
 
-        try:
-            # Process the file using mdDocumentChunker
-            with open(filepath, 'r', encoding='utf-8') as f:
-                file_content = f.read()
+    for file in files:
+        if file.filename == '':
+            failed_files.append(file.filename)
+            continue
 
-            chunks = chunker.mdDocumentChunker(file_content)
-            print("Number of chunks loaded: " + str(len(chunks)))
+        # Validate file type
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            file.save(filepath)
 
-            # Store chunks in chromadb
-            chromaLoader.addDocumentsToVectorstore(VECTOR_STORE, chunks)
+            try:
+                # Process the file using mdDocumentChunker
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    file_content = f.read()
 
-            # Clean up the uploaded file
-            os.remove(filepath)
+                chunks = chunker.mdDocumentChunker(file_content)
+                print(f"Number of chunks loaded from {filename}: {len(chunks)}")
 
-            return jsonify({"message": "File uploaded and processed successfully."}), 200
+                # Store chunks in chromadb
+                chromaLoader.addDocumentsToVectorstore(VECTOR_STORE, chunks)
 
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
+                # Clean up the uploaded file
+                os.remove(filepath)
 
+                uploaded_files.append(filename)
+
+            except Exception as e:
+                failed_files.append(f"{filename}: {str(e)}")
+        else:
+            failed_files.append(f"{file.filename}: Invalid file type")
+
+    if uploaded_files:
+        return jsonify({"message": "Files uploaded and processed successfully.", "files": uploaded_files}), 200
     else:
-        return jsonify({"error": "Invalid file type. Only .md files are allowed."}), 400
+        return jsonify({"error": "No valid files uploaded.", "failed": failed_files}), 400
+
     
 
 @app.route('/threat_detection', methods=['POST'])
