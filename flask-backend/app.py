@@ -92,7 +92,25 @@ def threat_detection():
     except Exception as e:
         return Response(f"<error>{str(e)}</error>", status=400, content_type='application/xml')
 
+@app.route('/threat_validation', methods=['POST'])
+def threat_validation():
+    try:
+        print("Threat validation request received")
+        
+        # Decode the raw bytes into a string
+        request_body = request.data.decode('utf-8')
 
+        # Use the reusable function to get components
+        dfdXml = json.loads(request_body).get("dfd")
+        dfd = process_xml(dfdXml)
+        threats =  json.loads(request_body).get("threats")
+
+        systemDescription = dfdParser.componentToText(dfd["components"])
+        threats = promptHandler.validateThreats(systemDescription, threats)
+        
+        return jsonify({"message": "Threat validation processed successfully", "threats": threats})
+    except Exception as e:
+        return Response(f"<error>{str(e)}</error>", status=400, content_type='application/xml')
 
 @app.route('/parse_dfd_to_components', methods=['POST'])
 def parse_dfd_to_components():
@@ -110,8 +128,12 @@ def parse_dfd_to_components():
     
 def process_xml(request_body):
     try:
-        # Parse the JSON string into a Python dictionary
-        json_data = json.loads(request_body)
+        # If `dfdXml` is already a dictionary, skip json.loads
+        if isinstance(request_body, dict):
+            json_data = request_body
+        else:
+            # Otherwise, parse the JSON string into a Python dictionary
+            json_data = json.loads(request_body)
 
         # Extract the XML string from the JSON structure
         dfd_xml = json_data.get('xml')

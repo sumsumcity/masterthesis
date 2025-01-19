@@ -58,7 +58,7 @@
   },
   {
     "Threat Category": "Development-time Threat",
-    "Threat": "Development-time Model Poisoning",
+    "Threat": "Development-environment Model Poisoning",
     "Description": "This threat refers to manipulating the behavior of the model by not poisoning the training data, but instead altering the engineering elements that lead to the model or represent the model (i.e. model parameters) during development time, e.g. by attacking the engineering environment to manipulate storage. When the model is trained by a supplier in a manipulative way and supplied as-is, then it is a Transfer learning attack. Data manipulation is referred to as data poisoning and is covered in separate threats.",
     "Potential Impact": "Integrity",
     "Affected assets": ["Model", "Data"],

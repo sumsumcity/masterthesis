@@ -11,7 +11,7 @@ import NotesRoundedIcon from '@mui/icons-material/NotesRounded';
 import { Typography } from '@mui/material'
 import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
 import NativeSelect from '@mui/material/NativeSelect';
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 import { Button,
   FormControl,
@@ -31,6 +31,8 @@ function Analyze({ onNrThreats }) {
   var [selectedKBValue, setSelectedKBValue] = useState('enisa');
   const [threatsFromBackend, setThreatsFromBackend] = useState([]);
   const [isLoading, setIsLoading] = useState(false); 
+  const [isThreatValidation, setIsThreatValidation] = useState(false)
+  const [threatTaxonomyLLM, setThreatTaxonomyLLM] = useState([])
   var [selectedModel] = useState(localStorage.getItem('selectedModel') || '')
   try {
     var loaded = JSON.parse(localStorage.getItem('storedModels')) || []
@@ -113,9 +115,7 @@ function Analyze({ onNrThreats }) {
         console.error("No diagram found in localStorage");
         return;
       }
-  
-      console.log(diagram);
-  
+    
       // Async function to handle the POST request
       const makePostRequest = async () => {
         setIsLoading(true); // Start loading
@@ -148,22 +148,68 @@ function Analyze({ onNrThreats }) {
   
       makePostRequest(); // Call the async function
     }
+    else {
+      setIsThreatValidation(false)
+    }
   }
 
   function handleThreatValidation() {
     // Define what should happen when the button is clicked
-    console.log("Threat validation triggered");
-    alert("Performing threat validation...");
-    // Add your specific logic here
+    setIsThreatValidation(true)
+
+    var threatTaxonomyLLM = threatTaxonomy.filter(threat => 
+      threatsFromBackend.some(backendThreat => 
+        backendThreat.toLowerCase() === threat.Threat.toLowerCase()
+      )
+    );
+    setThreatTaxonomyLLM(threatTaxonomyLLM)
+
+    const postThreatTaxonomy = async () => {
+      diagram = localStorage.getItem("diagram");
+      const requestBody = {
+        dfd: diagram,
+        threats: threatTaxonomyLLM,
+      };
+      const backendUrl = process.env.REACT_APP_BACKEND_URL;
+      setIsLoading(true); // Start loading
+      try {
+        console.log("request made to: " +`${backendUrl}/threat_validation`)
+        const response = await fetch(`${backendUrl}/threat_validation`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        });
+    
+        if (!response.ok) {
+          throw new Error(`Error: ${response.statusText}`);
+        }
+    
+        const responseData = await response.json();
+        console.log("Response from backend:", responseData);
+        threatTaxonomyLLM = responseData.threats
+        setThreatTaxonomyLLM(threatTaxonomyLLM)
+      } catch (error) {
+        console.error("Error sending POST request:", error);
+      } finally{
+        setIsLoading(false); // Stop loading
+      }
+    }
+    postThreatTaxonomy();
   }
   
 
   function getThreatsforCategory(category) {
-    var threats = threatTaxonomy.filter(t => t['Affected assets'].includes(category));
-    //console.log(threats);
+    if (isThreatValidation===true){
+      var threats = threatTaxonomyLLM.filter(t => t['Affected assets'].includes(category));
+    }
+    else{
+      var threats = threatTaxonomy.filter(t => t['Affected assets'].includes(category));
+    }
   
     // Only filter threats if we have data from the backend
-    if (threatsFromBackend.length > 0) {
+    if (threatsFromBackend.length > 0 && selectedKBValue==="llm") {
       threats = threats.filter(t => {
         // Check if the "Threat" name in taxonomy contains any string from the backend response
         return threatsFromBackend.some(response => t["Threat"].toLowerCase().includes(response.toLowerCase()));
@@ -175,7 +221,6 @@ function Analyze({ onNrThreats }) {
       t.potentialKeyThreat = t['Potential Impact'].includes(selectedModelInfo.keyProp);
       return t;
     });
-  
     return threats;
   }
 

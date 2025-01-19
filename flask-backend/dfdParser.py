@@ -41,11 +41,91 @@ def threatFinderAiDfdToComponentList(xml_string):
                         procCount += 1  # Increment processing count
                         break  # Exit loop after matching
         elif procCount == currentComponent["processingCount"] - 1: # If currently processing a component - finalize the current component and reset for the next one
-            components.append(data)
+            data.update({k: v for k, v in elem.attrib.items() if k != "id" or k not in data or not data[k]})
+            components.append(data) # Update data, exclude 'id' if it already has a value in 'data'
             currentComponent = {}
             procCount = 0
         else: # Continue processing the current component
-            data.update(elem.attrib)  # Merge attributes with existing data
+            data.update({k: v for k, v in elem.attrib.items() if k != "id" or k not in data or not data[k]}) # Update data, exclude 'id' if it already has a value in 'data'
             procCount += 1
 
     return components
+
+def componentToText(components):
+    result = ""
+    tbList = [] 
+
+    # Get all trust boundaries
+    for component in components:
+        if component["type"] == "trust boundary":
+            tb = {"id": component["id"], "value": component["value"], "x": component["x"], "y": component["y"], "width": component["width"], "height": component["height"]}
+            tbList.append(tb)
+    tbValues = [tb["value"] for tb in tbList]
+    tbString = f"The system consists of {len(tbList)} trust boundaries called: {', '.join(tbValues)}. "
+    result = result + tbString
+
+    # Now textulize the rest and check always if it is in a trustBoundary
+    for component in components:
+        if component["type"] == "asset":
+            tbFound=False
+            assetStr = f"There is an asset {component['assetname']} called {component['label']}"
+            for tb in tbList:
+                if component["parent"] == tb["id"]:
+                    assetStr = assetStr + f" which is in the trust boundary {tb['value']}"
+                    tbFound = True
+                    break
+            if not tbFound:
+                if float(component["x"]) >= float(tb["x"]) and float(component["x"]) <= (float(tb["x"]) + float(tb["width"])):
+                    if float(component["y"]) >= float(tb["y"]) and float(component["y"]) <= (float(tb["y"]) + float(tb["height"])):
+                        assetStr = assetStr + f" which is in the trust boundary {tb['value']}"
+                        break
+            assetStr = assetStr + ". "
+            result = result + assetStr
+        elif component["type"] == "arrow":
+            sourceAsset = findById(components, component["source"])
+            targetAsset = findById(components, component["target"])
+            if sourceAsset is not None and targetAsset is not None:
+                sourceLabel = sourceAsset.get("label", sourceAsset.get("type", "Unknown"))
+                targetLabel = targetAsset.get("label", targetAsset.get("type", "Unknown"))
+                arrowStr = f"The asset {sourceLabel} points to asset {targetLabel} with an arrow. "
+                result = result + arrowStr
+        elif component["type"] == "bidirectional arrow":
+            sourceAsset = findById(components, component["source"])
+            targetAsset = findById(components, component["target"])
+            if sourceAsset is not None and targetAsset is not None:
+                sourceLabel = sourceAsset.get("label", sourceAsset.get("type", "Unknown"))
+                targetLabel = targetAsset.get("label", targetAsset.get("type", "Unknown"))
+                arrowStr = f"The asset {sourceLabel} points to asset {targetLabel} with a bidirectional arrow ({component['value']}). "
+                result = result + arrowStr
+        elif component["type"] == "undirectional arrow":
+            sourceAsset = findById(components, component["source"])
+            targetAsset = findById(components, component["target"])
+            if sourceAsset is not None and targetAsset is not None:
+                sourceLabel = sourceAsset.get("label", sourceAsset.get("type", "Unknown"))
+                targetLabel = targetAsset.get("label", targetAsset.get("type", "Unknown"))
+                arrowStr = f"The asset {sourceLabel} points to asset {targetLabel} with an undirectional arrow ({component['value']}). "
+                result = result + arrowStr
+        elif component["type"] == "adversary":
+            assetStr = f"There is an adversary in the drawing"
+            for tb in tbList:
+                if component["parent"] == tb["id"]:
+                    assetStr = assetStr + f" which is in the trust boundary {tb['value']}"
+            assetStr = assetStr + ". "
+            result = result + assetStr
+        elif component["type"] == "note":
+            noteStr = f"There is an note in the drawing which says: {component['value']}. "
+            for tb in tbList:
+                if component["parent"] == tb["id"]:
+                    noteStr = noteStr + f"The note is in the trust boundary {tb['value']}. "
+            result = result + noteStr
+    
+    print("System description is: " + result)
+    return result
+        
+
+# Find item in a list of dicts by id
+def findById(items, target_id):
+    for item in items:
+        if item.get("id") == target_id:
+            return item
+    return None  # Return None if no match is found
