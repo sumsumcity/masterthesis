@@ -14,9 +14,40 @@ services:
       dockerfile: Dockerfile
     container_name: frontend
     ports:
-      - "3001:3000"
+      - "3000:3000"
     environment:
-      - REACT_APP_BACKEND_URL=http://host.docker.internal:5000
+      - REACT_APP_BACKEND_URL=http://127.0.0.1:5000
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+        - 11434:11434
+    volumes:
+        - ./ollama/ollama:/root/.ollama
+        - ./entrypoint.sh:/entrypoint.sh
+    container_name: ollama
+    pull_policy: always
+    tty: true
+    restart: always
+    entrypoint: ["/usr/bin/bash", "/entrypoint.sh"]
+
+  flask-backend:
+    build:
+      context: ./flask-backend
+      dockerfile: Dockerfile
+    container_name: flask-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - CHROMADB_HOST=chromadb
+      - CHROMADB_PORT=8000
+      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_MODEL=llama3
+    depends_on:
+      - chromadb
+      - ollama
+    command: ["sh", "-c", "sleep 5 && flask run --host=0.0.0.0"]
 
 volumes:
   chromadb_data:
+  ollama_data:

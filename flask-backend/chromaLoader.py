@@ -9,9 +9,9 @@ from uuid import uuid4
 # https://python.langchain.com/docs/integrations/text_embedding/
 
 
-def clientInit(collectionName, embeddingModel="llama3", host="localhost", port=8000):
+def clientInit(collectionName, ollamaURL, embeddingModel="llama3", host="localhost", port=8000):
     
-    embeddings = OllamaEmbeddings(model=embeddingModel)
+    embeddings = OllamaEmbeddings(model=embeddingModel, base_url=ollamaURL)
     persistent_client = chromadb.HttpClient(host=host, port=port)
 
     vector_store_from_client = Chroma(

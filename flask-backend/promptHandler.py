@@ -4,11 +4,11 @@ import ast
 import json
 
 
-def detectThreats(dfdJson, collection="aiThreatCollection", k=2):
+def detectThreats(dfdJson, VECTOR_STORE, k=2, OLLAMA_MODEL="llama3", OLLAMA_URL="localhost"):
     inputContext = ""
     assetname=[]
     assetlabel=[]
-    vectorStore = chromaLoader.clientInit(collection)
+    vectorStore = VECTOR_STORE
 
     for component in dfdJson["components"]:
         if component["type"] == "asset":
@@ -26,7 +26,7 @@ def detectThreats(dfdJson, collection="aiThreatCollection", k=2):
     print("Input context: " + inputContext)
 
     # Ask LLM
-    llm = OllamaLLM(model="llama3.2")
+    llm = OllamaLLM(model=OLLAMA_MODEL, base_url=OLLAMA_URL)
     input_text = (
         f"Here is some context: {inputContext}. "
         "Please extract a list of all threats mentioned in the context. "
@@ -40,11 +40,11 @@ def detectThreats(dfdJson, collection="aiThreatCollection", k=2):
     resultList = ast.literal_eval(output)
     return resultList
 
-def validateThreats(systemDescription, threatList):
+def validateThreats(systemDescription, threatList, OLLAMA_MODEL="llama3", OLLAMA_URL="localhost"):
 
     # Ask LLM
     #print(f"Analyzes threat "+str(i+1)+"/"+str(len(threatList)))
-    llm = OllamaLLM(model="llama3.2")
+    llm = OllamaLLM(model=OLLAMA_MODEL, base_url=OLLAMA_URL)
     threats = []
     for t in threatList:
         threats.append({"Threat": t["Threat"], "Description": t["Description"]})
