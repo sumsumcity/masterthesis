@@ -4,7 +4,7 @@ import ast
 import json
 
 
-def detectThreats(dfdJson, VECTOR_STORE, k=2, OLLAMA_MODEL="llama3", OLLAMA_URL="localhost"):
+def detectThreats(dfdJson, VECTOR_STORE, k=2, OLLAMA_MODEL="llama3.2", OLLAMA_URL="localhost"):
     inputContext = ""
     assetname=[]
     assetlabel=[]
@@ -40,7 +40,7 @@ def detectThreats(dfdJson, VECTOR_STORE, k=2, OLLAMA_MODEL="llama3", OLLAMA_URL=
     resultList = ast.literal_eval(output)
     return resultList
 
-def validateThreats(systemDescription, threatList, OLLAMA_MODEL="llama3", OLLAMA_URL="localhost"):
+def validateThreats(systemDescription, threatList, OLLAMA_MODEL="llama3.2", OLLAMA_URL="localhost"):
 
     # Ask LLM
     #print(f"Analyzes threat "+str(i+1)+"/"+str(len(threatList)))

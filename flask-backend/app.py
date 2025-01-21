@@ -17,7 +17,7 @@ ALLOWED_EXTENSIONS = {'md'}
 CHROMADB_HOST=os.getenv('CHROMADB_HOST', 'localhost')
 CHROMADB_PORT=os.getenv('CHROMADB_PORT', '8000')
 OLLAMA_URL = os.getenv('OLLAMA_URL', 'http://localhost:11434')
-OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'llama3')
+OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'llama3.2')
 VECTOR_STORE = chromaLoader.clientInit("aiThreatCollection", OLLAMA_URL, OLLAMA_MODEL, CHROMADB_HOST, CHROMADB_PORT)
 
 @app.route('/queryLLM', methods=['POST'])
@@ -80,7 +80,7 @@ def upload_file():
                 print(f"Number of chunks loaded from {filename}: {len(chunks)}")
 
                 # Store chunks in chromadb
-                chromaLoader.addDocumentsToVectorstore(VECTOR_STORE, chunks)
+                chromaLoader.addDocumentsToVectorstore(VECTOR_STORE, chunks, OLLAMA_URL, OLLAMA_MODEL)
 
                 # Clean up the uploaded file
                 os.remove(filepath)

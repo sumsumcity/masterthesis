@@ -9,7 +9,7 @@ from uuid import uuid4
 # https://python.langchain.com/docs/integrations/text_embedding/
 
 
-def clientInit(collectionName, ollamaURL, embeddingModel="llama3", host="localhost", port=8000):
+def clientInit(collectionName, ollamaURL, embeddingModel="llama3.2", host="localhost", port=8000):
     
     embeddings = OllamaEmbeddings(model=embeddingModel, base_url=ollamaURL)
     persistent_client = chromadb.HttpClient(host=host, port=port)
@@ -21,8 +21,8 @@ def clientInit(collectionName, ollamaURL, embeddingModel="llama3", host="localho
     )
     return vector_store_from_client
 
-def addDocumentsToVectorstore(vectorStore, documents):
-    embeddings = OllamaEmbeddings(model="llama3")
+def addDocumentsToVectorstore(vectorStore, documents, ollamaURL, ollamaModel):
+    embeddings = OllamaEmbeddings(model=ollamaModel, base_url=ollamaURL)
 
     for i, doc in enumerate(documents):
         print(f"Calculating Embedding of chunk {i+1}/{len(documents)}")
