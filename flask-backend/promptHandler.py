@@ -2,6 +2,7 @@ import chromaLoader
 from langchain_ollama import OllamaLLM  # type: ignore
 import ast
 import json
+import re
 
 
 def detectThreats(dfdJson, VECTOR_STORE, k=2, OLLAMA_MODEL="llama3.2", OLLAMA_URL="localhost"):
@@ -50,22 +51,6 @@ def validateThreats(systemDescription, threatList, OLLAMA_MODEL="llama3.2", OLLA
         threats.append({"Threat": t["Threat"], "Description": t["Description"]})
 
     input_text_alternative = (
-    f"System Description: {systemDescription}. "
-    f"Threats: {str(threats)}. "
-    "**Task:**"
-    "1. Update each threat's description to explain its importance and criticality to this system, using asset names and trust boundaries. "
-    "2. Add a detailed explanation (2-4 sentences) tailored to the system, including an example (1-2 sentences) showing how the threat could be exploited in this system. "
-    "3. Rank each threat uniquely by importance (1 = most critical, larger numbers = less critical). No ties. "
-    "**Rules:**"
-    "- Add a 'Ranking' key to each threat's dictionary. "
-    "- Leave the description unchanged and rank lowest if context is insufficient. "
-    "- Do not add new threats or extra information. "
-    "- Output JSON with the updated structure, including the updated description and ranking. "
-    "**Output Example:**"
-    '[{"Threat": "Direct Prompt Injection","Description": "This threat allows attackers to bypass safeguards, manipulating the model to produce harmful outputs. For example, malicious instructions embedded in inputs could expose sensitive data.","Ranking": 1}, ...]'
-)
-
-    input_text = (
         "**Priming**: "
         "You are tasked with analyzing the provided system description and updating the descriptions of potential threats to explain why each threat is critical to this system. Each updated description should: "
         "1. Explain the threat's importance and relevance to the system based on the provided details (2-4 sentences). "
@@ -86,8 +71,43 @@ def validateThreats(systemDescription, threatList, OLLAMA_MODEL="llama3.2", OLLA
         'Example output: [{"Threat": "Direct Prompt Injection","Description": "This threat allows attackers to bypass safeguards, manipulating the model [assetname of system description] to produce harmful outputs. For example, malicious instructions embedded in inputs in the asset [assetname of system description] could expose sensitive data.","Ranking": 1}, {"Threat": "Open-box Evasion","Description": "This threat enables adversaries to bypass security by understanding the models [assetname of system description] internal workings. For instance, attackers might exploit architecture details in the trustboundary [trustboundary name of system description] to generate outputs that compromise sensitive data.","Ranking": 2}, ...]'
     )
 
+    input_text = (
+    "### Task Definition: "
+    "Analyze the provided system description and update the descriptions of potential threats to explain why each threat is critical to this system. Each updated description should: "
+    "1. Explain the threat's importance and relevance to the system based on the provided details (2-4 sentences). "
+    "2. Include an example (1-2 sentences) showing how the threat could be exploited, using asset names and trust boundaries. "
+    "3. Assign a unique ranking to each threat based on its importance (1 = most critical, larger numbers = less critical). Ensure no duplicate rankings by explicitly comparing and adjusting as needed. "
+    
+    "### Style and Tone: "
+    "Use concise, simple, and professional language. Focus only on the provided system description and threats. "
+    "Do not add new threats, modify the provided threats, or introduce unrelated information. "
+    
+    "### Handling Edge Cases: "
+    "If a threat lacks sufficient context in its description, leave the original description unchanged and assign it the lowest ranking. "
+    
+    "### Input Details: "
+    f"System Description: {systemDescription}. "
+    f"Threats: {str(threats)}. "
+    
+    "### Output Requirements: "
+    "Return only the JSON-formatted list of threats. Do not include any additional text, such as comments, explanations, or introductions, before or after the JSON output. The JSON should strictly adhere to this structure:"
+    "- 'Threat': The name of the threat. "
+    '- "Description": An updated description with the explanation and example. '
+    '- "Ranking": The unique ranking of the threat. '
+    
+    "### Example Output: "
+    '[{"Threat": "[Threat Name Placeholder]",'
+    '"Description": "This threat impacts [assetname of system description] by [action placeholder], leading to [consequence placeholder]. For example, [example action placeholder] could exploit [trustboundary name of system description].",'
+    '"Ranking": 1}, '
+    '{"Threat": "[Another Threat Name Placeholder]",'
+    '"Description": "This threat allows adversaries to [action placeholder] in [assetname of system description], causing [consequence placeholder]. For instance, [example action placeholder] might leverage [trustboundary name of system description] to compromise security.",'
+    '"Ranking": 2}, ...]'
+)
+
+
     print("LLM validates the threats. This can take a moment. Please wait...")
     output =  llm.invoke(input_text)
+    print("Raw LLM Output:")
     print(output)
     try:
         output = json.loads(output)
@@ -97,15 +117,39 @@ def validateThreats(systemDescription, threatList, OLLAMA_MODEL="llama3.2", OLLA
                     t["Description"] = o["Description"]
                     if o["Ranking"]==1:
                         t["Description"] = t["Description"] + " This is a Rank 1 threat, which means it is the most important to address. "
-                        #t["Ranking"] = o["Ranking"]
                     else:
                         t["Description"] = t["Description"] + f" This is a Rank {o['Ranking']} threat, less critical than Rank 1 but still highly important. "
-                        #t["Ranking"] = o["Ranking"]
                     break   
 
         return threatList
     except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}")
+        print(f"Error decoding JSON directly: {e}")
+        try:
+            json_match = re.search(r"\[.*?\]", output, re.DOTALL)
+            if json_match:
+                json_string = json_match.group(0)
+                print("Extracted JSON String:")
+                print(json_string)  # Debugging: Zeigt den extrahierten JSON-String
+
+                # Parst den extrahierten JSON-String
+                output = json.loads(json_string)
+                print("Parsed JSON Output:")
+                print(output)
+
+                for o in output:
+                    for t in threatList:
+                        if o["Threat"] == t["Threat"]:
+                            t["Description"] = o["Description"]
+                            if o["Ranking"] == 1:
+                                t["Description"] += " This is a Rank 1 threat, which means it is the most important to address. "
+                            else:
+                                t["Description"] += f" This is a Rank {o['Ranking']} threat, less critical than Rank 1 but still highly important. "
+                            break
+                return threatList
+            else:
+                print("No valid JSON array found in output.")
+        except json.JSONDecoder as e:
+            print(f"After trying to find the first [ and the correspong ] there is still an error: {e}")
         return threatList
 
 
