@@ -35,7 +35,8 @@ def detectThreats(dfdJson, VECTOR_STORE, k=2, OLLAMA_MODEL="llama3.2", OLLAMA_UR
         "If the threat identified is 'Sensitive data disclosure through use,' replace it with the following two threats: 'Sensitive data output from model' and 'Model inversion and membership inference.' Do not mention 'Sensitive data disclosure through use' in any context, and only refer to the other two threats."        "Follow these rules: "
         "1. Ignore all numbers and keys in the dictionaries. "
         "2. Exclude any uppercase values starting with a hashtag (e.g., #OBSCURECONFIDENCE). "
-        "3. Provide the output in the exact format of a Python list. For example: [\"Threat 1\", \"Threat 2\"]."
+        "3. Do NOT add any threats not explicitly stated in the context. Do NOT infer, interpret, or invent any additional threats, even if they seem relevant. Only include threats that are verbatim or synonymous with those mentioned in the context. "
+        "4. Provide the output in the exact format of a Python list. For example: [\"Threat 1\", \"Threat 2\"]."
     )
     output =  llm.invoke(input_text)
     resultList = ast.literal_eval(output)
@@ -96,7 +97,7 @@ def validateThreats(systemDescription, threatList, OLLAMA_MODEL="llama3.2", OLLA
     '- "Ranking": The unique ranking of the threat. '
     
     "### Example Output: "
-    '[{"Threat": "[Threat Name Placeholder]",'
+    '[{"Threat": "Threat Name Placeholder",'
     '"Description": "This threat impacts [assetname of system description] by [action placeholder], leading to [consequence placeholder]. For example, [example action placeholder] could exploit [trustboundary name of system description].",'
     '"Ranking": 1}, '
     '{"Threat": "[Another Threat Name Placeholder]",'
@@ -104,11 +105,13 @@ def validateThreats(systemDescription, threatList, OLLAMA_MODEL="llama3.2", OLLA
     '"Ranking": 2}, ...]'
 )
 
-
+    print("These are all the threats received:")
+    print(str(threats))
     print("LLM validates the threats. This can take a moment. Please wait...")
     output =  llm.invoke(input_text)
     print("Raw LLM Output:")
     print(output)
+    print("---------------------------------------------------------------------------")
     try:
         output = json.loads(output)
         for o in output:
@@ -117,10 +120,15 @@ def validateThreats(systemDescription, threatList, OLLAMA_MODEL="llama3.2", OLLA
                     t["Description"] = o["Description"]
                     if o["Ranking"]==1:
                         t["Description"] = t["Description"] + " This is a Rank 1 threat, which means it is the most important to address. "
+                        print(f"Rank 1 was given to Threat: {o['Threat']}.")
                     else:
                         t["Description"] = t["Description"] + f" This is a Rank {o['Ranking']} threat, less critical than Rank 1 but still highly important. "
+                        print(f"Rank {o['Ranking']} was given to Threat: {o['Threat']}.")
                     break   
-
+        
+        print("Final output:")
+        print(threatList)
+        print("---------------------------------------------------------------------------")
         return threatList
     except json.JSONDecodeError as e:
         print(f"Error decoding JSON directly: {e}")

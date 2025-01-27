@@ -159,7 +159,7 @@ function Analyze({ onNrThreats }) {
 
     var threatTaxonomyLLM = threatTaxonomy.filter(threat => 
       threatsFromBackend.some(backendThreat => 
-        backendThreat.toLowerCase() === threat.Threat.toLowerCase()
+        threat.Threat.toLowerCase().includes(backendThreat.toLowerCase())
       )
     );
     setThreatTaxonomyLLM(threatTaxonomyLLM)

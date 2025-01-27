@@ -12,7 +12,7 @@ componentTypes = [
     {"type": "asset", "processingCount": 3, "detectionType": "tag", "detectionValue": "object"},
 ]
 
-# Input: JSON body from threatFinderAI DFD
+# Input: XML body from threatFinderAI DFD
 # Output: List of all Components in the DFD
 def threatFinderAiDfdToComponentList(xml_string):
     root = ET.fromstring(xml_string)
