@@ -1,7 +1,10 @@
 # Masterthesis
 
 docker running:
-1) docker-compose up
+1) Check if your GPU is ready to use by running:
+`docker run --rm -it --gpus=all nvcr.io/nvidia/k8s/cuda-sample:nbody nbody -gpu -benchmark`
+If the GPU is not available, update the Docker Compose YAML file accordingly. Otherwise, continue.
+2) docker-compose up
 
 Local running:
 1) docker-compose up --build chromadb

@@ -105,8 +105,8 @@ def validateThreats(systemDescription, threatList, OLLAMA_MODEL="llama3.2", OLLA
     '"Ranking": 2}, ...]'
 )
 
-    print("These are all the threats received:")
-    print(str(threats))
+    print("This is the input context:")
+    print(str(input_text))
     print("LLM validates the threats. This can take a moment. Please wait...")
     output =  llm.invoke(input_text)
     print("Raw LLM Output:")

@@ -26,6 +26,11 @@ services:
         - ./ollama/ollama:/root/.ollama
         - ./entrypoint.sh:/entrypoint.sh
     container_name: ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
     pull_policy: always
     tty: true
     restart: always
