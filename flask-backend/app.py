@@ -136,6 +136,25 @@ def upload_file():
                 chunks = chunker.mdDocumentChunker(file_content)
                 print(f"Number of chunks loaded from {filename}: {len(chunks)}")
 
+                ### Evaluation - Summarization in document chunking
+                # for i, chunk in enumerate(chunks):
+                #     print("Summarize chunk " + str(i+1))
+
+                #     prompt = f"Summarize the provided text in 1000 tokens, focusing primarily on describing the threat itself. Your summary should clearly explain the nature of the threat, how it operates, and how an attacker could potentially exploit it. Avoid focusing on mitigation strategies, controls, or defensive measures. Instead, emphasize the mechanisms of the threat, its potential impact, and the ways in which an attacker might leverage it to achieve their objectives. The text is: {chunk.page_content}" 
+                #     llm = OllamaLLM(model=OLLAMA_MODEL, base_url=OLLAMA_URL)
+                #     output = llm.invoke(prompt)
+                #     print(output)
+                #     chunk.page_content = output
+
+                ### Evaluation - Recursive chunking
+                # finalChunks = []
+                # for i, chunk in enumerate(chunks):
+                #     print("Recursive Chunking for Chunk: " + str(i+1))
+                #     result = chunker.recursiveChunker(chunk, 512, 100)
+                #     for doc in result:
+                #         finalChunks.append(doc)
+                # chunks = finalChunks
+
                 # Store chunks in chromadb
                 chromaLoader.addDocumentsToVectorstore(VECTOR_STORE, chunks, OLLAMA_URL, OLLAMA_MODEL)
 

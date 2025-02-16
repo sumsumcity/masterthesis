@@ -7,9 +7,6 @@ def mdDocumentChunker(fileContent):
     headers_to_split_on = [
         ("##", "Header 1"),
         ("###", "Header 2"),
-        ("####", "Header 3"),
-        ("#####", "Header 4"),
-        ("######", "Header 5"),
     ]
 
     markdown_splitter = MarkdownHeaderTextSplitter(headers_to_split_on=headers_to_split_on, strip_headers=False)
@@ -22,7 +19,8 @@ def mdDocumentChunker(fileContent):
     print("MD Document loaded")
     return result
 
-def recursiveChunker(text, chunkSize=700, chunkOverlap=100):
+def recursiveChunker(document, chunkSize=700, chunkOverlap=100):
+    text = document.page_content
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunkSize,
         chunk_overlap=chunkOverlap,
@@ -30,4 +28,6 @@ def recursiveChunker(text, chunkSize=700, chunkOverlap=100):
         is_separator_regex=False,
     )
     result = text_splitter.create_documents([text])
+    for r in result:
+        r.metadata = document.metadata
     return result
