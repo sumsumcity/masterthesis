@@ -20,6 +20,63 @@ OLLAMA_URL = os.getenv('OLLAMA_URL', 'http://localhost:11434')
 OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'llama3.2')
 VECTOR_STORE = chromaLoader.clientInit("aiThreatCollection", OLLAMA_URL, OLLAMA_MODEL, CHROMADB_HOST, CHROMADB_PORT)
 
+@app.route('/evaluation_similaritySearch', methods=['POST'])
+def similaritySearchOverDescription():
+    try:
+        print("Similarity Search Evaluation request received")
+        
+        # Decode the raw bytes into a string
+        request_body = request.data.decode('utf-8')
+
+        # Use the reusable function to get components
+        dfd = process_xml(request_body)
+        systemDescription = dfdParser.componentToText(dfd["components"])
+
+        # Similarity search
+        query = f"Identify threats for the following system: {systemDescription}"
+        res = chromaLoader.similarity_search(VECTOR_STORE, query, 8)
+        inputContext = ""
+        for r in res:
+            inputContext = inputContext + str(r.metadata)
+        print("similarity search conducted")
+        print("Input context is generated")
+        print("Input context: " + inputContext)
+
+        # Ask LLM
+        llm = OllamaLLM(model=OLLAMA_MODEL, base_url=OLLAMA_URL)
+        input_text = (
+            f"Here is some context: {inputContext}. "
+            "Please extract a list of all threats mentioned in the context. "
+            "Do NOT add any additional information and do not invent any further threats that are not found in the context. "
+            "If the threat identified is 'Sensitive data disclosure through use,' replace it with the following two threats: 'Sensitive data output from model' and 'Model inversion and membership inference.' Do not mention 'Sensitive data disclosure through use' in any context, and only refer to the other two threats."        "Follow these rules: "
+            "1. Ignore all numbers and keys in the dictionaries. "
+            "2. Exclude any uppercase values starting with a hashtag (e.g., #OBSCURECONFIDENCE). "
+            "3. Do NOT add any threats not explicitly stated in the context. Do NOT infer, interpret, or invent any additional threats, even if they seem relevant. Only include threats that are verbatim or synonymous with those mentioned in the context. "
+            "4. Provide the output in the exact format of a Python list. For example: [\"Threat 1\", \"Threat 2\"]."
+        )
+        import ast
+        output =  llm.invoke(input_text)
+        resultList = ast.literal_eval(output)
+
+        print("The Output is: ")
+        print(resultList)
+
+        return jsonify({"message": "Threat detection processed successfully", "threats": resultList})
+    except Exception as e:
+        return Response(f"<error>{str(e)}</error>", status=400, content_type='application/xml')
+
+@app.route('/evaluation_reranking', methods=['POST'])
+def reranker():
+    try:
+        print("Reranking request received")
+        
+        # 1) Copy the similarity search which worked best
+        # 2) Load the chunks which worked best (chunking strategy)
+        # 3) Add https://python.langchain.com/docs/integrations/retrievers/flashrank-reranker/#doing-reranking-with-flashrank
+        return jsonify({"message": "Threat detection processed successfully", "threats": "resultList"})
+    except Exception as e:
+        return Response(f"<error>{str(e)}</error>", status=400, content_type='application/xml')
+
 @app.route('/queryLLM', methods=['POST'])
 def test():
     print("QueryLLM request:")
