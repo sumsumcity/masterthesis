@@ -60,16 +60,17 @@ def similarity_search(vectorStore, prompt, numberOfResults):
 # Main logic - when the script is called directly
 if __name__ == "__main__":
 
-    vectorStore = clientInit("aiThreatCollection")
+    vectorStore = clientInit("aiThreatCollection", "http://localhost:11434")
 
     #deleteData(vectorStore, getData(vectorStore)["ids"])
     #addDocumentsToVectorstore(vectorStore, documents)
 
-    #result = getData(vectorStore)
-    #print(len(result["ids"]))
+    result = getData(vectorStore)
+    print(len(result["ids"]))
 
-    # client = chromadb.HttpClient(host="localhost", port=8000)
-    # collections = client.list_collections()
-    # for collection in collections:
-    #     print(collection)
+    client = chromadb.HttpClient(host="localhost", port=8000)
+    collections = client.list_collections()
+    for collection in collections:
+        print(collection)
+    # client.delete_collection(name="aiThreatCollection")
     

@@ -8,6 +8,7 @@ import json
 import dfdParser
 import os
 from langchain_ollama import OllamaLLM  # type: ignore
+import re
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -35,28 +36,22 @@ def similaritySearchOverDescription():
         # Similarity search
         query = f"Identify threats for the following system: {systemDescription}"
         res = chromaLoader.similarity_search(VECTOR_STORE, query, 8)
-        inputContext = ""
+        resultList = []
         for r in res:
-            inputContext = inputContext + str(r.metadata)
+            threat = list(r.metadata.values())[-1]
+            cleaned_threat = re.sub(r'[\d.]', '', threat) # Remove all digits and '.'
+            cleaned_threat = cleaned_threat.lstrip() # Remove the first space
+            if "Sensitive data disclosure through use" in cleaned_threat:
+                cleaned_threat = "Sensitive data output from model"
+                if cleaned_threat not in resultList:
+                    resultList.append(cleaned_threat)
+                cleaned_threat = "Model inversion and membership inference"
+                if cleaned_threat not in resultList:
+                    resultList.append(cleaned_threat)
+            if cleaned_threat not in resultList:
+                resultList.append(cleaned_threat)
         print("similarity search conducted")
-        print("Input context is generated")
-        print("Input context: " + inputContext)
 
-        # Ask LLM
-        llm = OllamaLLM(model=OLLAMA_MODEL, base_url=OLLAMA_URL)
-        input_text = (
-            f"Here is some context: {inputContext}. "
-            "Please extract a list of all threats mentioned in the context. "
-            "Do NOT add any additional information and do not invent any further threats that are not found in the context. "
-            "If the threat identified is 'Sensitive data disclosure through use,' replace it with the following two threats: 'Sensitive data output from model' and 'Model inversion and membership inference.' Do not mention 'Sensitive data disclosure through use' in any context, and only refer to the other two threats."        "Follow these rules: "
-            "1. Ignore all numbers and keys in the dictionaries. "
-            "2. Exclude any uppercase values starting with a hashtag (e.g., #OBSCURECONFIDENCE). "
-            "3. Do NOT add any threats not explicitly stated in the context. Do NOT infer, interpret, or invent any additional threats, even if they seem relevant. Only include threats that are verbatim or synonymous with those mentioned in the context. "
-            "4. Provide the output in the exact format of a Python list. For example: [\"Threat 1\", \"Threat 2\"]."
-        )
-        import ast
-        output =  llm.invoke(input_text)
-        resultList = ast.literal_eval(output)
 
         print("The Output is: ")
         print(resultList)
