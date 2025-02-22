@@ -9,6 +9,8 @@ import dfdParser
 import os
 from langchain_ollama import OllamaLLM  # type: ignore
 import re
+from langchain.retrievers.contextual_compression import ContextualCompressionRetriever
+from langchain_cohere import CohereRerank
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -67,8 +69,69 @@ def reranker():
         
         # 1) Copy the similarity search which worked best
         # 2) Load the chunks which worked best (chunking strategy)
-        # 3) Add https://python.langchain.com/docs/integrations/retrievers/flashrank-reranker/#doing-reranking-with-flashrank
-        return jsonify({"message": "Threat detection processed successfully", "threats": "resultList"})
+        # 3) Add https://python.langchain.com/docs/integrations/retrievers/cohere-reranker/
+        
+        # Decode the raw bytes into a string
+        request_body = request.data.decode('utf-8')
+
+        # Use the reusable function to get components
+        dfd = process_xml(request_body)
+        systemDescription = dfdParser.componentToText(dfd["components"])
+
+        # Similarity search
+        query = f"Identify threats for the following system: {systemDescription}"
+        res = chromaLoader.similarity_search(VECTOR_STORE, query, 200)
+
+        ### For low k strategy
+        # assetname=[]
+        # assetlabel=[]
+        # for component in dfd["components"]:
+        #     if component["type"] == "asset":
+        #         assetlabel.append(component["label"])
+        #         assetname.append(component["assetname"])
+
+        # print(assetlabel)
+        # testResList = []
+        # for i, an in enumerate(assetname):
+        #     query = f"Identify threats for the following assets: {an} called {assetlabel[i]}"
+        #     res = chromaLoader.similarity_search(VECTOR_STORE, query, 25)
+        #     for r in res:
+        #         testResList.append(r)
+        # res = testResList
+
+        ### Reranking
+        import os
+
+        if "COHERE_API_KEY" not in os.environ:
+            os.environ["COHERE_API_KEY"] = "<<COHERE API-KEY>>"
+        compressor = CohereRerank(model="rerank-english-v3.0", top_n=200)
+        ranked_docs = compressor.compress_documents(res, query=query)
+        print("-----------------------------------")
+        for r in ranked_docs:
+            print(r.metadata)
+        print("--------------------")
+
+        resultList = []
+        for r in res:
+            threat = list(r.metadata.values())[-1]
+            cleaned_threat = re.sub(r'[\d.]', '', threat) # Remove all digits and '.'
+            cleaned_threat = cleaned_threat.lstrip() # Remove the first space
+            if "Sensitive data disclosure through use" in cleaned_threat:
+                cleaned_threat = "Sensitive data output from model"
+                if cleaned_threat not in resultList:
+                    resultList.append(cleaned_threat)
+                cleaned_threat = "Model inversion and membership inference"
+                if cleaned_threat not in resultList:
+                    resultList.append(cleaned_threat)
+            if cleaned_threat not in resultList:
+                resultList.append(cleaned_threat)
+        print("similarity search conducted")
+
+
+        print("The Output is: ")
+        print(resultList)
+
+        return jsonify({"message": "Threat detection processed successfully", "threats": resultList})
     except Exception as e:
         return Response(f"<error>{str(e)}</error>", status=400, content_type='application/xml')
 
@@ -142,13 +205,13 @@ def upload_file():
                 #     chunk.page_content = output
 
                 ### Evaluation - Recursive chunking
-                # finalChunks = []
-                # for i, chunk in enumerate(chunks):
-                #     print("Recursive Chunking for Chunk: " + str(i+1))
-                #     result = chunker.recursiveChunker(chunk, 512, 100)
-                #     for doc in result:
-                #         finalChunks.append(doc)
-                # chunks = finalChunks
+                finalChunks = []
+                for i, chunk in enumerate(chunks):
+                    print("Recursive Chunking for Chunk: " + str(i+1))
+                    result = chunker.recursiveChunker(chunk, 512, 100)
+                    for doc in result:
+                        finalChunks.append(doc)
+                chunks = finalChunks
 
                 # Store chunks in chromadb
                 chromaLoader.addDocumentsToVectorstore(VECTOR_STORE, chunks, OLLAMA_URL, OLLAMA_MODEL)
@@ -182,7 +245,7 @@ def threat_detection():
         dfd = process_xml(request_body)
 
         # For now, just print the components (or handle further logic)
-        threats = promptHandler.detectThreats(dfd, VECTOR_STORE, 2, OLLAMA_MODEL, OLLAMA_URL)
+        threats = promptHandler.detectThreats(dfd, VECTOR_STORE, 14, OLLAMA_MODEL, OLLAMA_URL)
 
         print("The Output is: ")
         print(threats)
